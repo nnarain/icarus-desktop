@@ -3,3 +3,4 @@ members = [
     "icarus-client",
     "icarus-desktop"
 ]
+resolver = "2"
