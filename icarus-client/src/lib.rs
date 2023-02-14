@@ -6,7 +6,7 @@
 //
 
 use btleplug::{
-    api::{Central, Manager as _, Peripheral, ScanFilter, CharPropFlags, ValueNotification, Characteristic},
+    api::{Central, Manager as _, Peripheral, ScanFilter, Characteristic},
     platform::Manager
 };
 
