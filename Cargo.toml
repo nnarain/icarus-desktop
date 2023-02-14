@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "icarus-client",
+    "icarus-cli",
     "icarus-desktop"
 ]
 resolver = "2"
