@@ -2049,8 +2049,14 @@ dependencies = [
 name = "icarus-desktop"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bevy",
  "bevy_egui",
+ "icarus-client",
+ "itertools",
+ "log",
+ "pretty_env_logger",
+ "tokio",
 ]
 
 [[package]]
