@@ -23,7 +23,7 @@ use std::{
 };
 use thiserror::Error;
 use uuid::Uuid;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{NetworkEndian, ReadBytesExt};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -120,9 +120,9 @@ async fn attitude_recv_task<P: Peripheral>(p: P, c: Characteristic, tx: Sender<A
         while let Some(data) = stream.next().await {
             let mut cursor = Cursor::new(&data.value[..]);
 
-            let pitch = cursor.read_f32::<LittleEndian>()?;
-            let roll = cursor.read_f32::<LittleEndian>()?;
-            let yaw = cursor.read_f32::<LittleEndian>()?;
+            let pitch = cursor.read_f32::<NetworkEndian>()?;
+            let roll = cursor.read_f32::<NetworkEndian>()?;
+            let yaw = cursor.read_f32::<NetworkEndian>()?;
 
             log::debug!("({}, {}, {})", pitch, roll, yaw);
 
