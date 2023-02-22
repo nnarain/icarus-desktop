@@ -45,6 +45,19 @@ fn ui_system(mut ctx: ResMut<EguiContext>, sensors: Res<Sensors>) {
     });
 }
 
+fn environment_setup(mut commands: Commands) {
+    commands.spawn(PointLightBundle {
+        point_light: PointLight::default(),
+        transform: Transform::from_xyz(8.0, 16.0, 8.0),
+        ..Default::default()
+    });
+
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(0., 6., 6.).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
+        ..Default::default()
+    });
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin{
@@ -53,6 +66,7 @@ fn main() {
         }))
         .add_plugin(EguiPlugin)
         .add_plugin(IcarusPlugin)
+        .add_startup_system(environment_setup)
         .add_system(ui_system)
         .run();
 }
