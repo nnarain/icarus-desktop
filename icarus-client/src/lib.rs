@@ -4,10 +4,13 @@
 // @author Natesh Narain <nnaraindev@gmail.com>
 // @date Feb 12 2023
 //
+mod utils;
+mod error;
+
+use error::IcarusBleError;
 
 use btleplug::{
-    api::{Central, Manager as _, Peripheral, ScanFilter, Characteristic},
-    platform::Manager
+    api::{Peripheral, Characteristic},
 };
 
 use tokio::{
@@ -21,17 +24,11 @@ use std::{
     io::Cursor,
     time::Duration,
 };
-use thiserror::Error;
+
 use uuid::Uuid;
 use byteorder::{NetworkEndian, ReadBytesExt};
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("The device was not found")]
-    DeviceNotFound,
-    #[error("Characteristic not found")]
-    CharacteristicNotFound,
-}
+
 
 #[derive(Default)]
 pub struct Attitude {
@@ -41,7 +38,8 @@ pub struct Attitude {
 }
 
 pub struct Client {
-    attitude_recv: Receiver<Attitude>,
+    pub services: Vec<Uuid>,
+    pub attitude_recv: Receiver<Attitude>,
 }
 
 impl Client {
@@ -54,61 +52,28 @@ const ATTITUDE_CHARACTERISTIC: Uuid = Uuid::from_u128(0x68af1093_1df9_41ac_98e8_
 
 
 pub async fn initialize() -> anyhow::Result<Client> {
-    let manager = Manager::new().await?;
-    let adaptor_list = manager.adapters().await?;
+    // Find the device
+    let device = utils::find_device().await?;
+    device.discover_services().await?;
 
-    for adaptor in adaptor_list.iter() {
-        log::debug!("Starting scan of {}...", adaptor.adapter_info().await?);
+    let services: Vec<Uuid> = device.services().iter().map(|s| s.uuid).collect();
 
-        adaptor
-            .start_scan(ScanFilter::default())
-            .await
-            .expect("Can't scan BLE adaptor for connected devices");
+    // Setup client streams
+    let (attitude_tx, attitude_rx) = mpsc::channel::<Attitude>(10);
 
-        time::sleep(Duration::from_secs(10)).await;
+    let attitude_char = device
+                            .characteristics()
+                            .iter()
+                            .filter(|c| c.uuid == ATTITUDE_CHARACTERISTIC)
+                            .next()
+                            .map(|c| c.clone())
+                            .ok_or(IcarusBleError::CharacteristicNotFound)?;
 
-        let peripherals = adaptor.peripherals().await?;
-
-        // Find the icarus device
-        for peripheral in peripherals.iter() {
-            let properties = peripheral.properties().await?;
-            let is_connected = peripheral.is_connected().await?;
-            let local_name = properties
-                                .map(|p| p.local_name)
-                                .flatten()
-                                .unwrap_or(String::from("unknown"));
-
-            if local_name == String::from("icarus") {
-                if !is_connected {
-                    if let Err(e) = peripheral.connect().await {
-                        log::error!("Failed to connect: {}", e);
-                        continue;
-                    }
-                }
-
-                peripheral.discover_services().await?;
-
-                // Setup client streams
-                let (attitude_tx, attitude_rx) = mpsc::channel::<Attitude>(10);
-
-                let attitude_char = peripheral
-                                        .characteristics()
-                                        .iter()
-                                        .filter(|c| c.uuid == ATTITUDE_CHARACTERISTIC)
-                                        .next()
-                                        .map(|c| c.clone())
-                                        .ok_or(Error::CharacteristicNotFound)?;
-
-                tokio::spawn(attitude_recv_task(peripheral.clone(), attitude_char, attitude_tx));
+    tokio::spawn(attitude_recv_task(device.clone(), attitude_char, attitude_tx));
 
 
-                let client = Client { attitude_recv: attitude_rx };
-                return Ok(client)
-            }
-        }
-    }
-
-    Err(Error::DeviceNotFound)?
+    let client = Client { services, attitude_recv: attitude_rx };
+    Ok(client)
 }
 
 async fn attitude_recv_task<P: Peripheral>(p: P, c: Characteristic, tx: Sender<Attitude>) -> anyhow::Result<()> {
