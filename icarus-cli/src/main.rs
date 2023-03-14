@@ -5,12 +5,19 @@
 // @date Feb 12 2023
 //
 
-use icarus_client::Attitude;
-use tokio::sync::mpsc::Receiver;
+use icarus_client::{Attitude, Throttle};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use clap::{Parser, Subcommand};
 
 use uuid::Uuid;
+
+#[derive(Debug, Default, Parser)]
+struct ThrottleArg {
+    pub pitch: i16,
+    pub roll: i16,
+    pub yaw: i16,
+}
 
 #[derive(Debug, Subcommand)]
 #[command(author, version, about, long_about = None)]
@@ -19,6 +26,8 @@ enum Commands {
     PrintImu,
     /// List service UUIDs
     ListServices,
+    /// Send Throttle
+    Throttle(ThrottleArg),
 }
 
 #[derive(Debug, Parser)]
@@ -39,11 +48,15 @@ async fn main() -> anyhow::Result<()> {
     let services = client.services.clone();
 
     // let services = client.services.clone();
-    let (attitude, _) = client.split();
+    let (attitude_recv, throttle_send) = client.split();
 
     let task = match args.cmd {
-        Commands::PrintImu => tokio::spawn(print_sensors_task(attitude)),
+        Commands::PrintImu => tokio::spawn(print_sensors_task(attitude_recv)),
         Commands::ListServices => tokio::spawn(list_services(services)),
+        Commands::Throttle(t) => {
+            let throttle = Throttle {pitch: t.pitch, roll: t.roll, yaw: t.yaw};
+            tokio::spawn(send_throttle(throttle, throttle_send))
+        }
     };
 
     tokio::select! {
@@ -70,5 +83,10 @@ async fn list_services(services: Vec<Uuid>) -> anyhow::Result<()> {
         println!("{}", uuid);
     }
 
+    Ok(())
+}
+
+async fn send_throttle(throttle: Throttle, tx: Sender<Throttle>) -> anyhow::Result<()> {
+    tx.send(throttle).await?;
     Ok(())
 }
