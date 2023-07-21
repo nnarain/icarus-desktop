@@ -38,11 +38,18 @@ pub struct Attitude {
     pub yaw: f32
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct Throttle {
     pub pitch: i16,
     pub roll: i16,
     pub yaw: i16,
+    pub vertical: i16,
+}
+
+impl Throttle {
+    pub fn new(pitch: i16, roll: i16, yaw: i16, vertical: i16) -> Self {
+        Throttle { pitch, roll, yaw, vertical }
+    }
 }
 
 pub struct Client {
@@ -63,7 +70,9 @@ const THROTTLE_CHARACTERISTIC: Uuid = Uuid::from_u128(0xc346b87e_9a11_4a56_9a53_
 
 pub async fn initialize() -> anyhow::Result<Client> {
     // Find the device
+    log::info!("Attempting to find device...");
     let device = utils::find_device().await?;
+    log::info!("Discovering device services...");
     device.discover_services().await?;
 
     let services: Vec<Uuid> = device.services().iter().map(|s| s.uuid).collect();
@@ -93,6 +102,8 @@ pub async fn initialize() -> anyhow::Result<Client> {
 
 
     let client = Client { services, attitude_recv: attitude_rx, throttle_send: throttle_tx };
+
+    log::info!("Found icarus flight controller");
     Ok(client)
 }
 
