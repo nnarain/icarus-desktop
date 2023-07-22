@@ -17,6 +17,7 @@ struct ThrottleArg {
     pub pitch: i16,
     pub roll: i16,
     pub yaw: i16,
+    pub vertical: i16,
 }
 
 #[derive(Debug, Subcommand)]
@@ -54,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::PrintImu => tokio::spawn(print_sensors_task(attitude_recv)),
         Commands::ListServices => tokio::spawn(list_services(services)),
         Commands::Throttle(t) => {
-            let throttle = Throttle {pitch: t.pitch, roll: t.roll, yaw: t.yaw};
+            let throttle = Throttle {pitch: t.pitch, roll: t.roll, yaw: t.yaw, vertical: t.vertical};
             tokio::spawn(send_throttle(throttle, throttle_send))
         }
     };
@@ -87,6 +88,7 @@ async fn list_services(services: Vec<Uuid>) -> anyhow::Result<()> {
 }
 
 async fn send_throttle(throttle: Throttle, tx: Sender<Throttle>) -> anyhow::Result<()> {
+    log::debug!("Sending throttle: {:?}", throttle);
     tx.send(throttle).await?;
     Ok(())
 }

@@ -9,16 +9,19 @@ use bevy::prelude::*;
 use bevy_egui::{
     egui::{
         self,
-        plot::{Line, Plot, PlotPoints, Legend}
+        plot::{Line, Plot, PlotPoints, Legend},
+        Slider,
     },
     EguiContext, EguiPlugin
 };
-use icarus_desktop::{IcarusPlugin, Sensors};
+use icarus_client::Throttle;
+use icarus_desktop::{IcarusPlugin, Sensors, ThrottleControl};
 
 use itertools::Itertools;
 
 
-fn ui_system(mut ctx: ResMut<EguiContext>, sensors: Res<Sensors>) {
+fn ui_system(mut ctx: ResMut<EguiContext>, sensors: Res<Sensors>, mut throttle_control: ResMut<ThrottleControl>) {
+    // Render a window for the sensor data
     egui::Window::new("Sensors").show(ctx.ctx_mut(), |ui| {
         let (pitch, roll, yaw): (Vec<_>, Vec<_>, Vec<_>) = sensors.attitude
                                                             .iter()
@@ -41,7 +44,20 @@ fn ui_system(mut ctx: ResMut<EguiContext>, sensors: Res<Sensors>) {
                 plot_ui.line(roll);
                 plot_ui.line(yaw);
             });
+    });
 
+    // Render a window for throttle control
+    egui::Window::new("Controls").show(ctx.ctx_mut(), |ui|{
+        let Throttle { mut pitch, mut roll, mut yaw, mut vertical } = throttle_control.last().clone();
+
+        ui.add(Slider::new(&mut pitch, 0..=100).text("Pitch"));
+        ui.add(Slider::new(&mut roll, 0..=100).text("Roll"));
+        ui.add(Slider::new(&mut yaw, 0..=100).text("Yaw"));
+        ui.add(Slider::new(&mut vertical, 0..=100).text("Thrust"));
+
+        let throttle = Throttle::new(pitch, roll, yaw, vertical);
+
+        throttle_control.enqueue(throttle);
     });
 }
 
