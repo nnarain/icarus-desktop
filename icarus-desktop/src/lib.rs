@@ -5,7 +5,6 @@
 // @date Feb 14 2023
 //
 mod sensors;
-mod throttle;
 
 use sensors::SensorBuffer;
 // use throttle::ThrottleControl;
@@ -36,30 +35,38 @@ pub struct Sensors {
     pub attitude: SensorBuffer<Attitude>,
 }
 
-#[derive(Default)]
 #[derive(Resource)]
 pub struct ThrottleControl {
-    // pub command_tx: Sender<Throttle>,
     queue: VecDeque<Throttle>,
+    last_command: Throttle,
 }
 
-// impl Default for ThrottleControl {
-//     fn default() -> Self {
-//         ThrottleControl { queue: VecDeque::d }
-//     }
-// }
+impl Default for ThrottleControl {
+    fn default() -> Self {
+        ThrottleControl { queue: VecDeque::with_capacity(3), last_command: Throttle::default() }
+    }
+}
 
 impl ThrottleControl {
     pub fn enqueue(&mut self, throttle: Throttle) {
         if let Some(item) = self.queue.back() {
-            if *item == throttle {
-                self.queue.push_back(throttle);
+            if *item != throttle {
+                self.queue.push_back(throttle.clone());
             }
         }
+        else {
+            self.queue.push_back(throttle.clone());
+        }
+
+        self.last_command = throttle;
     }
 
     pub fn dequeue(&mut self) -> Option<Throttle> {
         self.queue.pop_front()
+    }
+
+    pub fn last(&self) -> &Throttle {
+        &self.last_command
     }
 }
 
@@ -194,6 +201,7 @@ async fn run_icarus_client(attitude_tx: Sender<Attitude>, throttle_rx: Receiver<
 }
 
 async fn command_throttle_task(mut throttle_rx: Receiver<Throttle>, throttle_tx: Sender<Throttle>) -> anyhow::Result<()> {
+    log::error!("throttle task");
     while let Some(throttle) = throttle_rx.recv().await {
         if let Err(e) = throttle_tx.send(throttle).await {
             log::error!("Error sending data: {}", e);

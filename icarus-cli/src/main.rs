@@ -88,6 +88,7 @@ async fn list_services(services: Vec<Uuid>) -> anyhow::Result<()> {
 }
 
 async fn send_throttle(throttle: Throttle, tx: Sender<Throttle>) -> anyhow::Result<()> {
+    log::debug!("Sending throttle: {:?}", throttle);
     tx.send(throttle).await?;
     Ok(())
 }

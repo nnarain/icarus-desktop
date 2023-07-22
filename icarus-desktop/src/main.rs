@@ -48,14 +48,14 @@ fn ui_system(mut ctx: ResMut<EguiContext>, sensors: Res<Sensors>, mut throttle_c
 
     // Render a window for throttle control
     egui::Window::new("Controls").show(ctx.ctx_mut(), |ui|{
-        // let mut pitch = 0.0;
-        // let mut roll = 0.0;
-        // let mut yaw = 0.0;
-        let mut thrust = 0;
+        let Throttle { mut pitch, mut roll, mut yaw, mut vertical } = throttle_control.last().clone();
 
-        ui.add(Slider::new(&mut thrust, 0..=100).text("Thrust"));
+        ui.add(Slider::new(&mut pitch, 0..=100).text("Pitch"));
+        ui.add(Slider::new(&mut roll, 0..=100).text("Roll"));
+        ui.add(Slider::new(&mut yaw, 0..=100).text("Yaw"));
+        ui.add(Slider::new(&mut vertical, 0..=100).text("Thrust"));
 
-        let throttle = Throttle::new(0, 0, 0, thrust);
+        let throttle = Throttle::new(pitch, roll, yaw, vertical);
 
         throttle_control.enqueue(throttle);
     });

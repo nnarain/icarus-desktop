@@ -38,7 +38,7 @@ pub struct Attitude {
     pub yaw: f32
 }
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct Throttle {
     pub pitch: i16,
     pub roll: i16,
@@ -142,8 +142,7 @@ async fn throttle_send_task<P: Peripheral>(p: P, c: Characteristic, mut rx: Rece
         cursor.write_i16::<NetworkEndian>(throttle.pitch)?;
         cursor.write_i16::<NetworkEndian>(throttle.roll)?;
         cursor.write_i16::<NetworkEndian>(throttle.yaw)?;
-
-        log::debug!("Sending throttle: ({}, {}, {})", throttle.pitch, throttle.roll, throttle.yaw);
+        cursor.write_i16::<NetworkEndian>(throttle.vertical)?;
 
         p.write(&c, &data[..], WriteType::WithoutResponse).await?;
     }
